@@ -1,0 +1,122 @@
+##### 数据集调研 
+公开数据集
+ - **criteo**
+   |模型|AUC|Logloss|
+   |--|--|--|
+   |DeepLight|0.8123|0.4395|
+   |NormDNN|0.8107|NA|
+   |FAT-DeepFFM|0.8104|0.4416|
+   |xDeepFM|0.8052|0.4418| 
+ 
+ - **Avazu**
+   |模型|AUC|Logloss|
+   |--|--|--|
+   |Fi-GNN|0.812|0.3817|
+   |Sparse Deep FwFM|0.7897|0.3748|
+   |FGCNN+IPNN|0.7883|0.3746|
+    
+ - **Movie Lens 20M**   
+   |模型|AUC|F1|
+   |--|--|--|
+   |KGCN-sum|0.978|0.932|
+   |KNI|0.9704|NA|
+   |DIN + Dice Activation|0.7348|NA|
+   |DIN|0.7337|NA|
+   |DeepFM|0.7324|NA|
+ 
+ - **Amazon product reviews**
+   |模型|AUC|
+   |--|--|
+   |DIN + Dice Activation|0.8871|
+   |DIN|0.8818|
+   |DeepFM|0.8683|
+   |Wide & Deep|0.8637|
+   
+##### 参考模型比较
+ - #### **xDeepFM**
+    - **主要创新点**：
+        1. 提出xDeepFM,同时implicit和explicit地学习高阶特征，不需手动制作特征
+        2. 提出CIN， 明确地学习high-order特征
+    
+    - **相关工作**：
+        1. Embedding 
+        2. Implicit High-order Interactions
+            - 对高阶特征的交互没有明确定义，而是通过映射到Embedding Layer，通过拼接或其他方式交互
+            - 例如FNN，Deep Crossing, Wide&Deep, PNN, DeepFM 
+        3. Explicit High-order Interactions
+            - Deep&CrossNet,每一层表示一阶特征，k-layer表示k阶交互特征
+    - **主要内容**
+        - Compressed Interaction Network(CIN)
+            1. 交互以vector为单位，不以bit为单位。
+            2. high-order特征显示学习
+            3. 计算复杂度不指数增长
+        - CIN与DNN两路合并
+     
+    - **实验数据集**：Criteo, Dianping(自有), BingNews（自有）
+    - **实验内容**：
+        1. CIN Compressed Interaction Network（单独的深度网络）
+        2. 与Deep部分合体实验
+       
+ - #### **NormDNN**
+     - **主要创新点**：
+        1. 新的Layer Normalization方法， variance-only
+        2. 在Embedding和MLP两部分试验了不同的Normalization方法，三个数据集
+        3. 提出NormDNN，对于numerical feature，categorical feature和mlp采用特定的Normalization方法，比xDeepFM效果好
+        4. 在DeepFM和xDeepFM上应用不同的normal策略，证实有提升效果
+        5. 研究normalzaition有效的原因：variance
+     - **相关工作**：
+         - Normalization
+         - NN in CTR
+     - **实验数据集**：Criteo，Malware，Avazu
+     - **实验内容**
+         1. 不同normal方法只应用于feature embedding
+         2. 不同normal方法只应用于MLP
+         3. 均应用
+         4. categorical feature和numerical feature所需normal方法是否不同
+         5. 有没有一个最佳组合
+         6. DeepFM和xDeepFM应用normal的效果
+ 
+ - #### **FAT DeepFFM**
+    - **主要创新点**
+        1. 提出新的模型，对DeepFFM进行改进，在DeepFFM基础上引入field-aware attention机制（基于SENet改进的CENet）
+        2. 比较了两种不同的attention机制（在feature交互之前 or 在交叉特征上进行attention）
+        3. 两个数据集进行试验证明FAT-DeepFFM有效性
+    - **相关工作**
+        1. FM和FFM
+        2. Deep Learning CTR
+        3. CTR中的attention，AFM，DIN
+    - **主要内容**
+        1. DeepFFM：对每个field，转换成一个k * n的Embedding矩阵EM[i]，k为Embedding vector size，n为field总数，即将每个field i表示为和所有其他field交互的向量, EM[i,j]即为Field i和j交互的Embedding。然后通过內积计算获得interaction layer
+        2. SENet，先将每个EM进行1x1 conv，然后计算attention，然后作为权重和每个EM矩阵进行点乘
+        3. SENet和DeepFFM融合，在Interaction产生之前进行Attention，替换原有EM
+    - **数据集**：Criteo, Avazu
+    - **实验内容**
+        1. 模型是否有效
+        2. Attention机制放置的位置
+        3. 不同特征交互的方法：Inner Product 或 Hadamard-product
+       
+
+ - #### **Deep Light**
+     - **主要创新点**
+        1. High Quality：提出DeepFwFM，利用Field importance思想，FwFM改进low-order特征交互。比xDeepFM效果好且复杂度很低
+        2. Low latency：
+            1. 多余参数prune
+            2. 移除 weak field pairs
+        3. low consumption：EMbedding压缩
+        4. 实现 46x 加速 on criteo， 27x加速 on Avazu
+     - **相关工作**
+         - FM，DeepFM，xDeepFM
+     - **主要内容**
+         - DeepFwFM：
+             - 1. 和DeepFM类似，不过在FM到output时，加入Field Weight，所以比DeepFM效果更好
+             - 2. 不考虑3阶以上的特征交互，所以比XDeepFM快很多
+         - DeepLight:
+            1. 参数剪枝：通过随机将参数置为0来实现，最中参数矩阵稀疏，采用CRS来计算乘法
+            2. Embedding Layer裁剪
+     - **数据集**：Criteo，Avazu
+     - **实验内容**：
+        1. DeepFwFM效果
+        2. DeepLight：
+            1. 不同裁剪率的AUC变化
+            2. 不同部分：DNN，field matrix，Embedding vector裁剪的比较
+            3. 裁剪后的模型和其他Sparse Model对比
